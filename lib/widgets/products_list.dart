@@ -18,15 +18,11 @@ class ProductsList extends StatelessWidget {
     if (products.length > 0) {
       return ListView.builder(
         itemBuilder: (context, index) =>
-            ProductListItem(product: products[index], productIndex: index, onInfoButtonPressed: () => _navigateToDetails(context, index)),
+            ProductListItem(product: products[index]),
         itemCount: products.length,
       );
     } else {
       return Center(child: Text('PUSH THE BUTTON!!!'));
     }
-  }
-
-  void _navigateToDetails(BuildContext context, int index) {
-    Navigator.pushNamed<bool>(context, '/product/$index');
   }
 }

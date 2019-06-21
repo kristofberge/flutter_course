@@ -12,7 +12,12 @@ class ProductEditPage extends StatefulWidget {
 }
 
 class _ProductEditPageState extends State<ProductEditPage> {
-  final Map<String, dynamic> _formData = {'name': null, 'description': null, 'price': null, 'image': 'assets/food.jpg'};
+  final Map<String, dynamic> _formData = {
+    'name': null,
+    'description': null,
+    'price': null,
+    'image': 'https://www.capetownetc.com/wp-content/uploads/2018/06/Choc_1.jpeg'
+  };
   final GlobalKey<FormState> _formKey = GlobalKey<FormState>();
 
   Constants get _constants => Constants.of(context);
@@ -20,7 +25,7 @@ class _ProductEditPageState extends State<ProductEditPage> {
   @override
   Widget build(BuildContext context) {
     return ScopedModelDescendant<MainModel>(builder: (BuildContext context, Widget child, MainModel model) {
-      return model.selectedProductIndex == null
+      return model.selectedProductId == null
           ? _buildPageContent()
           : Scaffold(
               appBar: AppBar(
@@ -106,25 +111,17 @@ class _ProductEditPageState extends State<ProductEditPage> {
   Widget _buildSubmitButton() {
     return ScopedModelDescendant<MainModel>(
       builder: (BuildContext context, Widget child, MainModel model) {
-        return RaisedButton(
-          textColor: Colors.white,
-          child: Text('Save'),
-          onPressed: () => _submitForm(model.addProduct, model.updateProduct, model.selectedProductIndex),
-        );
+        if (model.isLoading) {
+          return Center(child: CircularProgressIndicator());
+        } else {
+          return RaisedButton(
+            textColor: Colors.white,
+            child: Text('Save'),
+            onPressed: () => _submitForm(model),
+          );
+        }
       },
     );
-  }
-
-  void _submitForm(Function addProduct, Function updateProduct, [int selectedProductIndex]) {
-    if (_formKey.currentState.validate()) {
-      _formKey.currentState.save();
-      if (selectedProductIndex == null) {
-        addProduct(_createProduct(_formData));
-      } else {
-        updateProduct(_createProduct(_formData));
-      }
-      Navigator.pushReplacementNamed(context, '/home');
-    }
   }
 
   String _validateTextField(String value, String name, {int minLength = 0, RegExp regex}) {
@@ -141,12 +138,48 @@ class _ProductEditPageState extends State<ProductEditPage> {
     return null;
   }
 
-  Product _createProduct(Map<String, dynamic> formData) {
-    return Product(
-      title: formData['name'],
-      image: formData['image'],
-      description: formData['description'],
-      price: formData['price'],
-    );
+  // Product _createProduct(Map<String, dynamic> formData, User user) {
+  //   return Product(
+  //       id: '',
+  //       title: formData['name'],
+  //       image: formData['image'],
+  //       description: formData['description'],
+  //       price: formData['price'],
+  //       userEmail: user.email,
+  //       userId: user.id);
+  // }
+
+  void _submitForm(MainModel model) async {
+    if (_formKey.currentState.validate()) {
+      _formKey.currentState.save();
+      if (model.selectedProductId == null) {
+        model
+            .addProduct(_formData['name'], _formData['description'], _formData['image'], _formData['price'])
+            .then((success) {
+          if (success) {
+            return Navigator.pushReplacementNamed(context, '/home').then((_) => model.selectProduct(null));
+          } else {
+            showDialog(
+                context: context,
+                builder: (context) {
+                  return AlertDialog(
+                    title: Text('Error'),
+                    content: Text('Please try again.'),
+                    actions: <Widget>[
+                      FlatButton(
+                        child: Text('OK'),
+                        onPressed: () => Navigator.of(context).pop(),
+                      )
+                    ],
+                  );
+                });
+          }
+        });
+      } else {
+        await model.updateProduct(_formData['name'], _formData['description'], _formData['image'], _formData['price']);
+        await Navigator.pushReplacementNamed(context, '/home');
+        model.selectProduct(null);
+      }
+    }
   }
 }

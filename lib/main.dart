@@ -2,8 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_course/common/constants.dart';
 import 'package:flutter_course/models/product.dart';
 import 'package:flutter_course/scoped-models/main.dart';
-import 'package:flutter_course/scoped-models/products.dart';
 import 'package:scoped_model/scoped_model.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'pages/auth_page.dart';
 import 'pages/product_page.dart';
 import 'pages/products_list_page.dart';
@@ -30,42 +30,49 @@ class MyApp extends StatefulWidget {
 }
 
 class _MyAppState extends State<MyApp> {
-  List<Product> _products = [];
+  final _model = MainModel();
+
+  @override
+  void initState() {
+    _model.autoAuthenticate();
+    super.initState();
+  }
 
   @override
   Widget build(BuildContext context) {
     return ScopedModel<MainModel>(
-      model: MainModel(),
+      model: _model,
       child: MaterialApp(
         theme: _buildThemeData(),
         routes: _buildRoutes(),
-        onGenerateRoute: _onGeneratedRoute,
-        onUnknownRoute: _onUnknownRoute,
+        onGenerateRoute: (settings) => _onGeneratedRoute(settings),
+        onUnknownRoute: (_) => _onUnknownRoute(),
       ),
     );
   }
 
-  Route _onUnknownRoute(RouteSettings settings) => MaterialPageRoute(builder: (context) => ProductsListPage());
+  Route _onUnknownRoute() => MaterialPageRoute(builder: (context) => ProductsListPage(_model));
 
   Route _onGeneratedRoute(RouteSettings settings) {
     final List<String> pathElements = settings.name.split('/');
     if (pathElements[0] != '') {
       return null;
     }
-    if (pathElements[1] == 'product') {
-      final int index = int.parse(pathElements[2]);
-      return MaterialPageRoute<bool>(
-        builder: (context) => ProductPage(index),
-      );
-    }
-    return null;
+    var productId = pathElements[2];
+    _model.selectProduct(productId);
+    return MaterialPageRoute(builder: (context) {
+      return ProductPage();
+    });
   }
 
   Map<String, WidgetBuilder> _buildRoutes() {
     return {
-      '/home': (context) => ProductsListPage(),
-      '/manage': (context) => ProductAdminPage(),
-      '/': (context) => AuthPage()
+      '/home': (context) => ProductsListPage(_model),
+      '/manage': (context) => ProductAdminPage(_model),
+      '/': (context) => ScopedModelDescendant<MainModel>(
+            builder: (BuildContext context, Widget child, MainModel model) =>
+                model.authenticatedUser == null ? AuthPage() : ProductsListPage(_model),
+          ),
     };
   }
 

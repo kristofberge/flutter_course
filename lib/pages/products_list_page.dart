@@ -1,9 +1,27 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_course/scoped-models/main.dart';
+import 'package:flutter_course/widgets/logout_list_tile.dart';
 import 'package:flutter_course/widgets/products_list.dart';
 import 'package:scoped_model/scoped_model.dart';
 
-class ProductsListPage extends StatelessWidget {
+class ProductsListPage extends StatefulWidget {
+  final MainModel model;
+
+  const ProductsListPage(this.model);
+
+  @override
+  State<StatefulWidget> createState() {
+    return ProductsListState();
+  }
+}
+
+class ProductsListState extends State<ProductsListPage> {
+  @override
+  void initState() {
+    widget.model.fetchProducts();
+    super.initState();
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -18,7 +36,9 @@ class ProductsListPage extends StatelessWidget {
               leading: Icon(Icons.edit),
               title: Text('Manage products'),
               onTap: () => Navigator.pushReplacementNamed(context, '/manage'),
-            )
+            ),
+            Divider(),
+            LogoutListTile(),
           ],
         ),
       ),
@@ -38,7 +58,23 @@ class ProductsListPage extends StatelessWidget {
           ),
         ],
       ),
-      body: ProductsList(),
+      body: _buildProductsList(),
+    );
+  }
+
+  Widget _buildProductsList() {
+    return ScopedModelDescendant<MainModel>(
+      builder: (BuildContext context, Widget child, MainModel model) {
+        if (model.displayedProducts.length > 0 && !model.isLoading) {
+          return RefreshIndicator(
+            child: ProductsList(),
+            onRefresh: () async => await model.fetchProducts(),
+          );
+        } else if (model.isLoading) {
+          return Center(child: CircularProgressIndicator());
+        }
+        return Center(child: Text('No products to diplay'));
+      },
     );
   }
 }

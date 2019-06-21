@@ -7,21 +7,17 @@ import 'package:flutter_course/widgets/product_name.dart';
 import 'package:scoped_model/scoped_model.dart';
 
 class ProductPage extends StatelessWidget {
-  final int index;
-
-  ProductPage(this.index);
-
   @override
   Widget build(BuildContext context) {
     return WillPopScope(
       onWillPop: () {
-        print('Back pressed');
+        ScopedModel.of<MainModel>(context).selectProduct(null);
         Navigator.pop(context, false);
         return Future.value(false);
       },
       child: ScopedModelDescendant<MainModel>(
         builder: (BuildContext context, Widget child, MainModel model) {
-          final Product product = model.products[index];
+          final Product product = model.selectedProduct;
           return Scaffold(
             appBar: AppBar(
               title: Text(product.title),
@@ -76,7 +72,7 @@ class ProductPage extends StatelessWidget {
       child: Card(
         clipBehavior: Clip.hardEdge,
         elevation: 6.0,
-        child: Image.asset(image),
+        child: Image.network(image),
       ),
     );
   }

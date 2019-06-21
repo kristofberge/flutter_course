@@ -1,8 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_course/common/constants.dart';
 import 'package:flutter_course/scoped-models/main.dart';
-import 'package:flutter_course/widgets/auth_text_field.dart';
 import 'package:scoped_model/scoped_model.dart';
+
+enum AuthMode { Signup, Login }
 
 class AuthPage extends StatefulWidget {
   @override
@@ -13,9 +14,12 @@ class AuthPage extends StatefulWidget {
 
 class _AuthState extends State<AuthPage> {
   final GlobalKey<FormState> _formKey = GlobalKey<FormState>();
+  final TextEditingController _passwordTextController = TextEditingController(text: '123456');
   final Map<String, dynamic> _authData = {'email': null, 'password': null, 'terms': true};
 
   Constants _constants() => Constants.of(context);
+
+  AuthMode _authMode = AuthMode.Login;
 
   @override
   Widget build(BuildContext context) {
@@ -38,12 +42,22 @@ class _AuthState extends State<AuthPage> {
                 width: targetWidth,
                 child: Column(
                   children: [
-                    _buildUsernameTextField(),
+                    _buildEmailTextField(),
                     SizedBox(height: 10),
                     _buildPasswordTextField(),
                     SizedBox(height: 10),
+                    _buildConfirmPasswordTextField(),
+                    SizedBox(height: 10),
                     _buildTermsSwitch(),
                     SizedBox(height: 20),
+                    FlatButton(
+                        child: Text('Switch to ${_authMode == AuthMode.Login ? 'Sign up' : 'Login'}'),
+                        onPressed: () {
+                          setState(() {
+                            _authMode = _authMode == AuthMode.Login ? AuthMode.Signup : AuthMode.Login;
+                          });
+                        }),
+                    SizedBox(height: 10),
                     _buildLoginButton(context),
                   ],
                 ),
@@ -75,30 +89,54 @@ class _AuthState extends State<AuthPage> {
     );
   }
 
-  RaisedButton _buildLoginButton(BuildContext context) {
-    return RaisedButton(
-        child: Text('LOGIN'), color: Theme.of(context).primaryColor, textColor: Colors.white, onPressed: _submitForm);
-  }
-
-  Widget _buildPasswordTextField() {
-    return AuthTextField(
-      initualValue: '12345',
-      onSavedFunction: (text) {
-        _authData[_constants().passwordKey] = text;
+  Widget _buildLoginButton(BuildContext context) {
+    return ScopedModelDescendant<MainModel>(
+      builder: (BuildContext context, Widget child, MainModel model) {
+        return model.isLoading
+            ? CircularProgressIndicator()
+            : RaisedButton(
+                child: Text(_authMode == AuthMode.Login ? 'LOGIN' : 'SIGN UP'),
+                color: Theme.of(context).primaryColor,
+                textColor: Colors.white,
+                onPressed: _submitForm);
       },
-      placeholder: 'password',
-      isPassword: true,
-      validator: (String value) => _validateTextField(value, 'password', minLength: 5),
     );
   }
 
-  AuthTextField _buildUsernameTextField() {
-    return AuthTextField(
-      initualValue: 'test@test.tst',
-      onSavedFunction: (text) {
+  Widget _buildPasswordTextField() {
+    return TextFormField(
+      decoration: InputDecoration(labelText: 'Password', fillColor: Colors.white, filled: true),
+      controller: _passwordTextController,
+      onSaved: (text) {
+        _authData[_constants().passwordKey] = text;
+      },
+      obscureText: true,
+      validator: (String value) => _validateTextField(value, 'password', minLength: 6),
+    );
+  }
+
+  Widget _buildConfirmPasswordTextField() {
+    return _authMode == AuthMode.Login
+        ? Container()
+        : TextFormField(
+            decoration: InputDecoration(labelText: 'Confirm password', fillColor: Colors.white, filled: true),
+            obscureText: true,
+            validator: (String value) {
+              if (value != _passwordTextController.text) {
+                return 'please enter matching passwords';
+              }
+              return null;
+            },
+          );
+  }
+
+  Widget _buildEmailTextField() {
+    return TextFormField(
+      decoration: InputDecoration(labelText: 'Email', fillColor: Colors.white, filled: true),
+      initialValue: 'test@test.tst',
+      onSaved: (text) {
         _authData[_constants().emailKey] = text;
       },
-      placeholder: 'email',
       keyboardType: TextInputType.emailAddress,
       validator: (String value) => _validateTextField(value, 'email',
           minLength: 4,
@@ -135,43 +173,34 @@ class _AuthState extends State<AuthPage> {
     );
   }
 
-  void _validateAndContinue() {
+  void _validateAndContinue() async {
     if (_formKey.currentState.validate()) {
       _formKey.currentState.save();
-      _showLoginConfirmationDialog();
+      var model = ScopedModel.of<MainModel>(context);
+      final Map<String, dynamic> result = await model.authenticate(_authData['email'], _authData['password'], _authMode);
+      if (result['success']) {
+        Navigator.pushReplacementNamed(context, '/home');
+      } else {
+        _showAuthenticationErrorDialog(context, result['error']);
+      }
     }
   }
 
-  void _showLoginConfirmationDialog() {
+  void _showAuthenticationErrorDialog(BuildContext context, String message) {
     showDialog(
-      context: context,
-      builder: (context) {
-        return AlertDialog(
-          title: Text('Confirm login.'),
-          content: Text('Are you sure want to login with email ${_authData['email']}?'),
-          actions: [
-            FlatButton(
-              child: Text('No, take me back'),
-              onPressed: () {
-                Navigator.pop(context);
-              },
-            ),
-            ScopedModelDescendant<MainModel>(
-              builder: (BuildContext context, Widget child, MainModel model) {
-                return FlatButton(
-                  child: Text('Yes, go on'),
-                  onPressed: () {
-                    model.login(_authData['email'], _authData['password']);
-                    Navigator.pop(context);
-                    Navigator.pushReplacementNamed(context, '/home');
-                  },
-                );
-              },
-            ),
-          ],
-        );
-      },
-    );
+        context: context,
+        builder: (context) {
+          return AlertDialog(
+            title: Text('Authentication failed'),
+            content: Text(message),
+            actions: <Widget>[
+              FlatButton(
+                child: Text('OK'),
+                onPressed: () => Navigator.pop(context),
+              )
+            ],
+          );
+        });
   }
 
   String _validateTextField(String value, String name, {int minLength = 0, RegExp regex}) {

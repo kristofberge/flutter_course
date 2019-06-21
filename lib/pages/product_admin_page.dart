@@ -1,9 +1,14 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_course/models/product.dart';
+import 'package:flutter_course/scoped-models/main.dart';
+import 'package:flutter_course/widgets/logout_list_tile.dart';
 import './my_products_page.dart';
 import './product_edit_page.dart';
 
 class ProductAdminPage extends StatelessWidget {
+  final MainModel model;
+
+  ProductAdminPage(this.model);
 
   @override
   Widget build(BuildContext context) {
@@ -31,7 +36,7 @@ class ProductAdminPage extends StatelessWidget {
         body: TabBarView(
           children: [
             ProductEditPage(),
-            MyProductsPage()
+            MyProductsPage(model)
           ],
         ),
       ),
@@ -48,7 +53,9 @@ class ProductAdminPage extends StatelessWidget {
               leading: Icon(Icons.home),
               title: Text('Home'),
               onTap: () => Navigator.pushReplacementNamed(context, '/home'),
-            )
+            ),
+            Divider(),
+            LogoutListTile(),
           ],
         );
   }

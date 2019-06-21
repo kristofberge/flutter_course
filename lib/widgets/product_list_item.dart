@@ -8,11 +8,9 @@ import 'price_tag.dart';
 import 'product_name.dart';
 
 class ProductListItem extends StatelessWidget {
-  const ProductListItem({@required this.product, @required this.productIndex, @required this.onInfoButtonPressed});
+  const ProductListItem({@required this.product});
 
   final Product product;
-  final int productIndex;
-  final Function onInfoButtonPressed;
 
   @override
   Widget build(BuildContext context) {
@@ -20,10 +18,15 @@ class ProductListItem extends StatelessWidget {
       elevation: 6.0,
       child: Column(
         children: [
-          Image.asset(product.image),
+          FadeInImage(
+            image: NetworkImage(product.image),
+            placeholder: AssetImage('assets/food.jpg'),
+            height: 300,
+            fit: BoxFit.cover,
+          ),
           _buildTitleSection(),
           AddressTag(text: 'Union Square, San Francisco', padding: EdgeInsets.symmetric(horizontal: 6, vertical: 3)),
-          Text(product.userEmail),
+          Text(product.userEmail ?? ''),
           _buildButtonSection(context)
         ],
       ),
@@ -60,10 +63,10 @@ class ProductListItem extends StatelessWidget {
     return ScopedModelDescendant<MainModel>(
       builder: (BuildContext context, Widget child, MainModel model) {
         return IconButton(
-          icon: Icon(model.products[productIndex].isFavorite ? Icons.favorite : Icons.favorite_border),
+          icon: Icon(product.isFavorite ? Icons.favorite : Icons.favorite_border),
           color: Colors.red,
           onPressed: () {
-            model.setSelectProduct(productIndex);
+            model.selectProduct(product.id);
             model.toggleIsFavorite();
           },
         );
@@ -72,6 +75,12 @@ class ProductListItem extends StatelessWidget {
   }
 
   IconButton _buildInfoButton(BuildContext context) {
-    return IconButton(icon: Icon(Icons.info), color: Theme.of(context).accentColor, onPressed: onInfoButtonPressed);
+    return IconButton(
+      icon: Icon(Icons.info),
+      color: Theme.of(context).accentColor,
+      onPressed: (){
+        Navigator.pushNamed(context, '/product/${product.id}');
+      },
+    );
   }
 }
