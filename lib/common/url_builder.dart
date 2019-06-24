@@ -1,10 +1,16 @@
 class UrlBuilder {
   static const _apiKey = 'AIzaSyAcZdsKce94sEo8K5ixdKTHi3yyF9yQdpI';
 
-  static const _productsUrl = 'https://fluttercourse-af511.firebaseio.com/products.json';
-  static const _signupUrl = 'https://www.googleapis.com/identitytoolkit/v3/relyingparty/signupNewUser';
-  static const _loginUrl = 'https://www.googleapis.com/identitytoolkit/v3/relyingparty/verifyPassword';
-  static const _productUrl = 'https://fluttercourse-af511.firebaseio.com/products';
+  static const _productsUrl =
+      'https://fluttercourse-af511.firebaseio.com/products';
+  static const _signupUrl =
+      'https://www.googleapis.com/identitytoolkit/v3/relyingparty/signupNewUser';
+  static const _loginUrl =
+      'https://www.googleapis.com/identitytoolkit/v3/relyingparty/verifyPassword';
+  static const _productUrl =
+      'https://fluttercourse-af511.firebaseio.com/products';
+
+  static const _wishlist = 'wishlistUsers';
 
   static const _authProperty = 'auth';
   static const _keyProperty = 'key';
@@ -13,7 +19,7 @@ class UrlBuilder {
 
   static String getProductsUrl(String token) {
     final StringBuffer buffer = StringBuffer(_productsUrl);
-    buffer.writeAll({'?', _authProperty, '=', token});
+    buffer.writeAll({_dotjson, '?', _authProperty, '=', token});
     return buffer.toString();
   }
 
@@ -33,6 +39,14 @@ class UrlBuilder {
     final StringBuffer buffer = StringBuffer(_productUrl);
     buffer.writeAll({'/', id, _dotjson});
     buffer.writeAll({'?', _authProperty, '=', token});
+
+    return buffer.toString();
+  }
+
+  static String getWishlistUrl(String productId, String userId, String token) {
+    final StringBuffer buffer = StringBuffer();
+    buffer.writeAll({_productsUrl, productId, _wishlist, userId}, '/');
+    buffer.writeAll({_dotjson, '?', _authProperty, '=', token});
 
     return buffer.toString();
   }

@@ -179,7 +179,6 @@ class _AuthState extends State<AuthPage> {
       var model = ScopedModel.of<MainModel>(context);
       final Map<String, dynamic> result = await model.authenticate(_authData['email'], _authData['password'], _authMode);
       if (result['success']) {
-        Navigator.pushReplacementNamed(context, '/home');
       } else {
         _showAuthenticationErrorDialog(context, result['error']);
       }

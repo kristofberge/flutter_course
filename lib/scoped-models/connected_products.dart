@@ -5,6 +5,7 @@ import 'package:flutter_course/common/url_builder.dart';
 import 'package:flutter_course/models/product.dart';
 import 'package:flutter_course/models/user.dart';
 import 'package:flutter_course/pages/auth_page.dart';
+import 'package:rxdart/rxdart.dart';
 import 'package:scoped_model/scoped_model.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:http/http.dart' as http;
@@ -31,26 +32,32 @@ mixin ProductsModel on ConnectedProductsModel {
 
   List<Product> get allProducts => List.from(_products);
 
-  List<Product> get displayedProducts =>
-      _showFavorites ? List.from(_products.where((p) => p.isFavorite)) : List.from(_products);
+  List<Product> get displayedProducts => _showFavorites
+      ? List.from(_products.where((p) => p.isFavorite))
+      : List.from(_products);
 
   String get selectedProductId => _selectedProductId;
 
-  Product get selectedProduct =>
-      _selectedProductId == null ? null : _products.firstWhere((p) => p.id == _selectedProductId);
+  Product get selectedProduct => _selectedProductId == null
+      ? null
+      : _products.firstWhere((p) => p.id == _selectedProductId);
 
   bool get displayFavoritesOnly => _showFavorites;
 
   User get authenticatedUser => _authenticatedUser;
 
-  int get _selProdIndex => _selectedProductId == null ? null : _products.indexWhere((p) => p.id == _selectedProductId);
+  int get _selProdIndex => _selectedProductId == null
+      ? null
+      : _products.indexWhere((p) => p.id == _selectedProductId);
 
-  Future<bool> addProduct(String title, String description, String image, double price) async {
+  Future<bool> addProduct(
+      String title, String description, String image, double price) async {
     _startLongOperation();
     final Map<String, dynamic> productData = {
       'title': title,
       'description': description,
-      'image': 'https://www.capetownetc.com/wp-content/uploads/2018/06/Choc_1.jpeg',
+      'image':
+          'https://www.capetownetc.com/wp-content/uploads/2018/06/Choc_1.jpeg',
       'price': price,
       'userEmail': _authenticatedUser.email,
       'userId': _authenticatedUser.id
@@ -58,8 +65,9 @@ mixin ProductsModel on ConnectedProductsModel {
 
     bool success = false;
     try {
-      http.Response response =
-          await http.post(UrlBuilder.getProductsUrl(_authenticatedUser.token), body: json.encode(productData));
+      http.Response response = await http.post(
+          UrlBuilder.getProductsUrl(_authenticatedUser.token),
+          body: json.encode(productData));
       return success = response.statusCode == 200 || response.statusCode == 201;
     } catch (error) {
       print(error);
@@ -75,13 +83,15 @@ mixin ProductsModel on ConnectedProductsModel {
     String idToDelete = _selectedProductId;
     _products.removeAt(_selProdIndex);
     notifyListeners();
-    final response = await http.delete(UrlBuilder.getProductUrl(idToDelete, _authenticatedUser.token));
+    final response = await http
+        .delete(UrlBuilder.getProductUrl(idToDelete, _authenticatedUser.token));
     _selectedProductId = null;
     _endLongOperation();
     return response.statusCode == 200 || response.statusCode == 201;
   }
 
-  Future<bool> updateProduct(String title, String description, String image, double price) async {
+  Future<bool> updateProduct(
+      String title, String description, String image, double price) async {
     _startLongOperation();
     final Map<String, dynamic> productData = {
       'title': title,
@@ -91,7 +101,8 @@ mixin ProductsModel on ConnectedProductsModel {
       'userEmail': selectedProduct.userEmail,
       'userId': selectedProduct.userId
     };
-    final response = await http.put(UrlBuilder.getProductUrl(_selectedProductId, _authenticatedUser.token),
+    final response = await http.put(
+        UrlBuilder.getProductUrl(_selectedProductId, _authenticatedUser.token),
         body: json.encode(productData));
     final Product updatedProduct = Product(
         id: selectedProduct.id,
@@ -107,7 +118,8 @@ mixin ProductsModel on ConnectedProductsModel {
     return response.statusCode == 200 || response.statusCode == 201;
   }
 
-  void toggleIsFavorite() {
+  Future toggleIsFavorite() async {
+    _startLongOperation();
     if (_selectedProductId != null) {
       final Product updatedProduct = Product(
           id: selectedProduct.id,
@@ -118,8 +130,10 @@ mixin ProductsModel on ConnectedProductsModel {
           userEmail: selectedProduct.userEmail,
           userId: selectedProduct.userId,
           isFavorite: !selectedProduct.isFavorite);
-      _products[_selProdIndex] = updatedProduct;
-      notifyListeners();
+      if (await _updateFavoritesOnApi(updatedProduct)) {
+        _products[_selProdIndex] = updatedProduct;
+      }
+      _endLongOperation();
     }
   }
 
@@ -132,7 +146,7 @@ mixin ProductsModel on ConnectedProductsModel {
     notifyListeners();
   }
 
-  Future<void> fetchProducts() async {
+  Future<void> fetchProducts({bool onlyForUser = false}) async {
     _startLongOperation();
     final List<Product> fetchedProducts = [];
     var url = UrlBuilder.getProductsUrl(_authenticatedUser.token);
@@ -148,11 +162,26 @@ mixin ProductsModel on ConnectedProductsModel {
         image: productData['image'],
         userEmail: productData['userEmail'],
         userId: productData['userId'],
+        isFavorite: (productData['wishlistUsers'] as Map<String, dynamic>)?.containsKey(_authenticatedUser.id) ?? false
       );
       fetchedProducts.add(product);
     });
-    _products = fetchedProducts;
+    _products = onlyForUser ? fetchedProducts.where((p) => p.userId == _authenticatedUser.id).toList() : fetchedProducts;
     _endLongOperation();
+  }
+
+  Future<bool> _updateFavoritesOnApi(Product updatedProduct) async {
+    http.Response response;
+
+    var url = UrlBuilder.getWishlistUrl(
+        updatedProduct.id, _authenticatedUser.id, _authenticatedUser.token);
+    if (updatedProduct.isFavorite) {
+      response = await http.put(url, body: json.encode(true));
+    } else {
+      response = await http.delete(url);
+    }
+
+    return response.statusCode == 200 || response.statusCode == 201;
   }
 }
 
@@ -163,22 +192,36 @@ mixin UserModel on ConnectedProductsModel {
   static const _successKey = 'success';
   static const _expiresInKey = 'tokenExpiresIn';
 
-  Future<Map<String, dynamic>> authenticate(String email, String password, AuthMode mode) async {
+  Timer _authTimer;
+  PublishSubject<bool> _userSubject = PublishSubject();
+
+  PublishSubject<bool> get userSubject => _userSubject;
+
+  Future<Map<String, dynamic>> authenticate(
+      String email, String password, AuthMode mode) async {
     _startLongOperation();
-    String url = mode == AuthMode.Login ? UrlBuilder.getLoginUrl() : UrlBuilder.getSignupUrl();
-    final http.Response response = await _authenticateWithApi(url, email, password);
+    String url = mode == AuthMode.Login
+        ? UrlBuilder.getLoginUrl()
+        : UrlBuilder.getSignupUrl();
+    final http.Response response =
+        await _authenticateWithApi(url, email, password);
     Map<String, dynamic> result = _getResult(response);
     if (result[_successKey]) {
-      _authenticatedUser = User(id: result[_idKey], email: email, token: result[_tokenKey]);
+      _authenticatedUser =
+          User(id: result[_idKey], email: email, token: result[_tokenKey]);
       final SharedPreferences prefs = await SharedPreferences.getInstance();
       prefs.setString(_tokenKey, _authenticatedUser.token);
       prefs.setString(_idKey, _authenticatedUser.id);
       prefs.setString(_emailKey, _authenticatedUser.email);
       var expiryTimeSeconds = int.parse(result[_expiresInKey]);
+      // var expiryTimeSeconds = 7;
       setAuthTimeout(expiryTimeSeconds);
-      final DateTime expiryTime = DateTime.now().add(Duration(seconds: expiryTimeSeconds));
+      _userSubject.add(true);
+      final DateTime expiryTime =
+          DateTime.now().add(Duration(seconds: expiryTimeSeconds));
       prefs.setString(_expiresInKey, expiryTime.toIso8601String());
     }
+
     _endLongOperation();
     return result;
   }
@@ -193,25 +236,32 @@ mixin UserModel on ConnectedProductsModel {
         _authenticatedUser = null;
         return;
       }
-      _authenticatedUser = new User(id: prefs.getString(_idKey), email: prefs.getString(_emailKey), token: token);
+      _authenticatedUser = new User(
+          id: prefs.getString(_idKey),
+          email: prefs.getString(_emailKey),
+          token: token);
+      _userSubject.add(true);
       notifyListeners();
     }
   }
 
   Future logout() async {
     _authenticatedUser = null;
+    _authTimer.cancel();
     final SharedPreferences prefs = await SharedPreferences.getInstance();
     prefs.remove(_tokenKey);
     prefs.remove(_emailKey);
     prefs.remove(_idKey);
     prefs.remove(_expiresInKey);
+    _userSubject.add(false);
   }
 
   void setAuthTimeout(int time) {
-    Timer(Duration(seconds: time), logout);
+    _authTimer = Timer(Duration(seconds: time), logout);
   }
 
-  Future<http.Response> _authenticateWithApi(String url, String email, String password) async {
+  Future<http.Response> _authenticateWithApi(
+      String url, String email, String password) async {
     return await http.post(
       url,
       body: json.encode(_createAuthData(email, password)),
@@ -222,7 +272,8 @@ mixin UserModel on ConnectedProductsModel {
   Map<String, dynamic> _getResult(http.Response response) {
     Map<String, dynamic> body = json.decode(response.body);
     Map<String, dynamic> result;
-    if ((response.statusCode == 200 || response.statusCode == 201) && body.containsKey('idToken')) {
+    if ((response.statusCode == 200 || response.statusCode == 201) &&
+        body.containsKey('idToken')) {
       result = {
         _idKey: body['localId'],
         _successKey: true,

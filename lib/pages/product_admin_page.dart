@@ -52,7 +52,7 @@ class ProductAdminPage extends StatelessWidget {
             ListTile(
               leading: Icon(Icons.home),
               title: Text('Home'),
-              onTap: () => Navigator.pushReplacementNamed(context, '/home'),
+              onTap: () => Navigator.pushReplacementNamed(context, '/'),
             ),
             Divider(),
             LogoutListTile(),

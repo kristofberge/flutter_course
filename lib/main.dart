@@ -1,9 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_course/common/constants.dart';
-import 'package:flutter_course/models/product.dart';
 import 'package:flutter_course/scoped-models/main.dart';
 import 'package:scoped_model/scoped_model.dart';
-import 'package:shared_preferences/shared_preferences.dart';
 import 'pages/auth_page.dart';
 import 'pages/product_page.dart';
 import 'pages/products_list_page.dart';
@@ -31,10 +29,13 @@ class MyApp extends StatefulWidget {
 
 class _MyAppState extends State<MyApp> {
   final _model = MainModel();
+  bool _isAuthenticated = false;
 
   @override
   void initState() {
     _model.autoAuthenticate();
+    _model.userSubject.listen((isAuthenticated) =>
+        setState(() => _isAuthenticated = isAuthenticated));
     super.initState();
   }
 
@@ -51,9 +52,14 @@ class _MyAppState extends State<MyApp> {
     );
   }
 
-  Route _onUnknownRoute() => MaterialPageRoute(builder: (context) => ProductsListPage(_model));
+  Route _onUnknownRoute() => MaterialPageRoute(
+      builder: (context) =>
+          _isAuthenticated ? ProductsListPage(_model) : AuthPage());
 
-  Route _onGeneratedRoute(RouteSettings settings) {
+  Route _onGeneratedRoute(RouteSettings settings) =>
+      _isAuthenticated ? _navigateToDetails(settings) : AuthPage();
+
+  MaterialPageRoute _navigateToDetails(RouteSettings settings) {
     final List<String> pathElements = settings.name.split('/');
     if (pathElements[0] != '') {
       return null;
@@ -67,16 +73,19 @@ class _MyAppState extends State<MyApp> {
 
   Map<String, WidgetBuilder> _buildRoutes() {
     return {
-      '/home': (context) => ProductsListPage(_model),
-      '/manage': (context) => ProductAdminPage(_model),
+      '/manage': (context) =>
+          _isAuthenticated ? ProductAdminPage(_model) : AuthPage(),
       '/': (context) => ScopedModelDescendant<MainModel>(
             builder: (BuildContext context, Widget child, MainModel model) =>
-                model.authenticatedUser == null ? AuthPage() : ProductsListPage(_model),
+                _isAuthenticated ? ProductsListPage(_model) : AuthPage(),
           ),
     };
   }
 
   ThemeData _buildThemeData() {
-    return ThemeData(primarySwatch: Colors.deepOrange, accentColor: Colors.deepPurple, buttonColor: Colors.deepPurple);
+    return ThemeData(
+        primarySwatch: Colors.deepOrange,
+        accentColor: Colors.deepPurple,
+        buttonColor: Colors.deepPurple);
   }
 }

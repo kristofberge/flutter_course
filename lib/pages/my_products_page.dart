@@ -16,10 +16,10 @@ class MyProductsPage extends StatefulWidget {
   }
 }
 
-class _MyProductPageState extends State<MyProductsPage>{
+class _MyProductPageState extends State<MyProductsPage> {
   @override
   void initState() {
-    widget.model.fetchProducts();
+    widget.model.fetchProducts(onlyForUser: true);
     super.initState();
   }
 
@@ -27,17 +27,23 @@ class _MyProductPageState extends State<MyProductsPage>{
   Widget build(BuildContext context) {
     return ScopedModelDescendant<MainModel>(
       builder: (BuildContext context, Widget child, MainModel model) {
-        return model.displayedProducts.length == 0
-            ? Center(child: Text('No items to display'))
-            : ListView.builder(
-                itemCount: model.allProducts.length,
-                itemBuilder: (context, index) => _buildDismissibleListItem(model, model.allProducts[index], context),
-              );
+        if (model.isLoading) {
+          return Center(child: CircularProgressIndicator());
+        } else {
+          return model.displayedProducts.length == 0
+              ? Center(child: Text('No items to display'))
+              : ListView.builder(
+                  itemCount: model.allProducts.length,
+                  itemBuilder: (context, index) => _buildDismissibleListItem(
+                      model, model.allProducts[index], context),
+                );
+        }
       },
     );
   }
 
-  Widget _buildDismissibleListItem(ProductsModel model, Product product, BuildContext context) {
+  Widget _buildDismissibleListItem(
+      ProductsModel model, Product product, BuildContext context) {
     return Dismissible(
       key: Key(product.id),
       onDismissed: (direction) async {
@@ -58,7 +64,8 @@ class _MyProductPageState extends State<MyProductsPage>{
     );
   }
 
-  Widget _buildListItemContent(BuildContext context, Product product, ProductsModel model) {
+  Widget _buildListItemContent(
+      BuildContext context, Product product, ProductsModel model) {
     return ListTile(
       contentPadding: EdgeInsets.symmetric(horizontal: 16, vertical: 4),
       leading: CircleAvatar(backgroundImage: NetworkImage(product.image)),
@@ -68,7 +75,8 @@ class _MyProductPageState extends State<MyProductsPage>{
     );
   }
 
-  Widget _buildEditButton(BuildContext context, String id, ProductsModel model) {
+  Widget _buildEditButton(
+      BuildContext context, String id, ProductsModel model) {
     return IconButton(
       icon: Icon(Icons.edit),
       onPressed: () {

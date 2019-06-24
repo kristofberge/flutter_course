@@ -65,9 +65,9 @@ class ProductListItem extends StatelessWidget {
         return IconButton(
           icon: Icon(product.isFavorite ? Icons.favorite : Icons.favorite_border),
           color: Colors.red,
-          onPressed: () {
+          onPressed: () async {
             model.selectProduct(product.id);
-            model.toggleIsFavorite();
+            await model.toggleIsFavorite();
           },
         );
       },

@@ -157,7 +157,7 @@ class _ProductEditPageState extends State<ProductEditPage> {
             .addProduct(_formData['name'], _formData['description'], _formData['image'], _formData['price'])
             .then((success) {
           if (success) {
-            return Navigator.pushReplacementNamed(context, '/home').then((_) => model.selectProduct(null));
+            return Navigator.pushReplacementNamed(context, '/').then((_) => model.selectProduct(null));
           } else {
             showDialog(
                 context: context,
@@ -177,7 +177,7 @@ class _ProductEditPageState extends State<ProductEditPage> {
         });
       } else {
         await model.updateProduct(_formData['name'], _formData['description'], _formData['image'], _formData['price']);
-        await Navigator.pushReplacementNamed(context, '/home');
+        await Navigator.pushReplacementNamed(context, '/');
         model.selectProduct(null);
       }
     }
